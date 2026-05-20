@@ -3,6 +3,10 @@
     "blender": {
       "command": "C:\\Users\\HP\\.local\\bin\\uvx.exe",
       "args": ["blender-mcp"]
+    },
+    "mcp-unity": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": ["C:\\Users\\HP\\Desktop\\Oasis\\mcp-unity-launcher.cjs"]
     }
   }
 }

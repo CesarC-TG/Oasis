@@ -74,3 +74,12 @@ Desktop.ini
 
 # Claude Code settings locales (no subir al repo)
 .claude/settings.local.json
+.claude/worktrees/
+
+# Blender backup files
+*.blend1
+*.blend1.meta
+
+# Session state (ephemeral)
+production/session-logs/
+production/session-state/

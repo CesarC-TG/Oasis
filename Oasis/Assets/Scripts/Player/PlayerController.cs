@@ -24,15 +24,22 @@ public class PlayerController : MonoBehaviour
 
     private CharacterController _cc;
     private PlayerStats _stats;
+    private Animator _animator;
     private Vector3 _velocity;
     private float _xRotation;
     private bool _isCrouching;
     private bool _isSprinting;
 
+    private static readonly int _hashSpeed       = Animator.StringToHash("Speed");
+    private static readonly int _hashIsCrouching = Animator.StringToHash("IsCrouching");
+    private static readonly int _hashIsGrounded  = Animator.StringToHash("IsGrounded");
+    private static readonly int _hashJump        = Animator.StringToHash("Jump");
+
     void Awake()
     {
         _cc = GetComponent<CharacterController>();
         _stats = GetComponent<PlayerStats>();
+        _animator = GetComponentInChildren<Animator>();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -45,6 +52,26 @@ public class PlayerController : MonoBehaviour
         HandleMovement();
         HandleJump();
         ApplyGravity();
+        UpdateAnimator();
+    }
+
+    void UpdateAnimator()
+    {
+        if (_animator == null) return;
+
+        float speed = 0f;
+        var kb = Keyboard.current;
+        if (kb != null)
+        {
+            bool isMoving = kb.wKey.isPressed || kb.sKey.isPressed ||
+                            kb.aKey.isPressed || kb.dKey.isPressed;
+            if (isMoving)
+                speed = _isSprinting ? 1f : 0.5f;
+        }
+
+        _animator.SetFloat(_hashSpeed,       speed, 0.1f, Time.deltaTime);
+        _animator.SetBool (_hashIsCrouching, _isCrouching);
+        _animator.SetBool (_hashIsGrounded,  IsGrounded());
     }
 
     bool IsGrounded()
@@ -143,6 +170,7 @@ public class PlayerController : MonoBehaviour
         {
             // Salto no consume stamina — solo el sprint drena stamina
             _velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
+            _animator?.SetTrigger(_hashJump);
         }
     }
 
