@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: ""
+last_updated: "2026-07-06"
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -48,7 +48,71 @@ last_updated: ""
 # Attribute fields: any key stats that could appear in another GDD
 #   (health, damage, drops, faction, etc.)
 
-entities: []
+entities:
+  - name: kael
+    status: active
+    source: design/gdd/linajes.md
+    referenced_by:
+      - design/gdd/linajes.md
+    baseDamage: 55
+    critChance: 0.18
+    critMultiplier: 1.9
+    HP_base: 120
+    Stamina_base: 100
+    added: 2026-07-06
+    revised: ""
+
+  - name: sira
+    status: active
+    source: design/gdd/linajes.md
+    referenced_by:
+      - design/gdd/linajes.md
+    baseDamage: 35
+    critChance: 0.12
+    critMultiplier: 1.6
+    HP_base: 100
+    Stamina_base: 60
+    added: 2026-07-06
+    revised: ""
+
+  - name: davan
+    status: active
+    source: design/gdd/linajes.md
+    referenced_by:
+      - design/gdd/linajes.md
+    baseDamage: 45
+    critChance: 0.22
+    critMultiplier: 2.1
+    HP_base: 110
+    Stamina_base: 90
+    added: 2026-07-06
+    revised: ""
+
+  - name: vael
+    status: active
+    source: design/gdd/linajes.md
+    referenced_by:
+      - design/gdd/linajes.md
+    baseDamage: 85
+    critChance: 0.10
+    critMultiplier: 1.7
+    HP_base: 170
+    Stamina_base: 110
+    added: 2026-07-06
+    revised: ""
+
+  - name: ren
+    status: active
+    source: design/gdd/linajes.md
+    referenced_by:
+      - design/gdd/linajes.md
+    baseDamage: 40
+    critChance: 0.35
+    critMultiplier: 2.4
+    HP_base: 105
+    Stamina_base: 120
+    added: 2026-07-06
+    revised: ""
 
 # Example (remove when first real entry is added):
 #
@@ -77,7 +141,15 @@ entities: []
 # Attribute fields: value_gold, weight, stackable, category, and any stat
 #   modifiers that another system (e.g., economy, crafting) might reference.
 
-items: []
+items:
+  - name: fragmento_memoria_adaptada
+    status: active
+    source: design/gdd/linajes.md
+    referenced_by:
+      - design/gdd/linajes.md
+    category: respec_material
+    added: 2026-07-06
+    revised: ""
 
 # Example:
 #
@@ -106,7 +178,22 @@ items: []
 #   output_range[min, max], added
 # Optional: expression (the actual formula), notes
 
-formulas: []
+formulas:
+  - name: costo_nodo_habilidad
+    status: active
+    source: design/gdd/linajes.md
+    referenced_by:
+      - design/gdd/linajes.md
+    variables:
+      - costoBase_rama
+      - profundidad
+      - factorProfundidad
+    output_range: [1, 8]
+    expression: "costoBase_rama × (1 + profundidad × factorProfundidad)"
+    notes: "costoBase_rama = 1 (tronco) o 2 (rama). factorProfundidad = 0.5 constante,
+      rango de tuning 0.3-0.6. Resultado redondeado hacia arriba (Ceil)."
+    added: 2026-07-06
+    revised: ""
 
 # Example:
 #
