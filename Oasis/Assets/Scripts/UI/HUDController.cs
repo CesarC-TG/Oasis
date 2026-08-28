@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Oasis.Combat;
 
 public class HUDController : MonoBehaviour
 {
@@ -14,11 +15,27 @@ public class HUDController : MonoBehaviour
     public Color staminaNormal = new Color(0.2f, 0.8f, 0.3f);
     public Color staminaExhausted = new Color(0.8f, 0.3f, 0.2f);
 
+    [Header("Feedback de daño")]
+    public Image damageFlash;          // flash rojo en pantalla al recibir daño
+    public float flashDuration = 0.15f;
+
     private PlayerStats _stats;
 
     void Awake()
     {
         _stats = FindFirstObjectByType<PlayerStats>();
+    }
+
+    void OnEnable()
+    {
+        CombatEventBus.OnDamageDealt += OnDamageDealt;
+        CombatEventBus.OnEntityKilled += OnEntityKilled;
+    }
+
+    void OnDisable()
+    {
+        CombatEventBus.OnDamageDealt -= OnDamageDealt;
+        CombatEventBus.OnEntityKilled -= OnEntityKilled;
     }
 
     void Update()
@@ -30,6 +47,30 @@ public class HUDController : MonoBehaviour
 
         if (staminaImage != null)
             staminaImage.color = _stats.IsExhausted ? staminaExhausted : staminaNormal;
+    }
+
+    void OnDamageDealt(DamageData data, float netDamage)
+    {
+        // Flash rojo si el jugador recibe daño
+        if (data.Source != null && data.Source != _stats.gameObject && damageFlash != null)
+        {
+            StopAllCoroutines();
+            StartCoroutine(DamageFlashRoutine());
+        }
+    }
+
+    void OnEntityKilled(GameObject entity)
+    {
+        if (entity == null) return;
+        Debug.Log($"[HUD] Entity killed: {entity.name}");
+    }
+
+    System.Collections.IEnumerator DamageFlashRoutine()
+    {
+        if (damageFlash == null) yield break;
+        damageFlash.enabled = true;
+        yield return new WaitForSeconds(flashDuration);
+        damageFlash.enabled = false;
     }
 
     void SetFill(RectTransform rect, float amount)

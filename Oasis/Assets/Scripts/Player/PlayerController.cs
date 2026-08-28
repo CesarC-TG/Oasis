@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Oasis.Combat;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -22,6 +23,20 @@ public class PlayerController : MonoBehaviour
     public float standCameraY = 0.5f;
     public float crouchCameraY = 0f;
 
+    [Header("Combate (melee)")]
+    public float MeleeDamage = 25f;
+    public float MeleeRange = 1.8f;
+    public float MeleeRadius = 0.6f;
+    public float MeleeCooldown = 0.5f;
+    public float ComboWindow = 0.8f;
+    public LayerMask MeleeLayerMask = -1;
+
+    [Header("Esquiva")]
+    public float DodgeCooldown = 0.5f;
+
+    [Header("VFX (opcional)")]
+    public ParticleSystem MeleeVFX;
+
     private CharacterController _cc;
     private PlayerStats _stats;
     private Animator _animator;
@@ -29,11 +44,30 @@ public class PlayerController : MonoBehaviour
     private float _xRotation;
     private bool _isCrouching;
     private bool _isSprinting;
+    private float _meleeCooldownTimer;
+    private float _dodgeCooldownTimer;
 
-    private static readonly int _hashSpeed       = Animator.StringToHash("Speed");
-    private static readonly int _hashIsCrouching = Animator.StringToHash("IsCrouching");
-    private static readonly int _hashIsGrounded  = Animator.StringToHash("IsGrounded");
-    private static readonly int _hashJump        = Animator.StringToHash("Jump");
+    // Combo system — cycles 0→1→2, resets after ComboWindow of inactivity
+    private int _comboIndex;
+    private float _comboTimer;
+
+    // Hit detection — NonAlloc per ADR-0001
+    private readonly Collider[] _meleeResults = new Collider[16];
+
+    private static readonly int _hashSpeed         = Animator.StringToHash("Speed");
+    private static readonly int _hashIsCrouching   = Animator.StringToHash("IsCrouching");
+    private static readonly int _hashIsGrounded    = Animator.StringToHash("IsGrounded");
+    private static readonly int _hashJump          = Animator.StringToHash("Jump");
+    private static readonly int _hashIsRunning     = Animator.StringToHash("IsRunning");
+    private static readonly int _hashAttack        = Animator.StringToHash("Attack");
+    private static readonly int _hashAttackIndex   = Animator.StringToHash("AttackIndex");
+    private static readonly int _hashComboIndex    = Animator.StringToHash("ComboIndex");
+    private static readonly int _hashDodge         = Animator.StringToHash("Dodge");
+    private static readonly int _hashDodgeDirection= Animator.StringToHash("DodgeDirection");
+    private static readonly int _hashHeavyHit      = Animator.StringToHash("HeavyHit");
+    private static readonly int _hashHitReaction   = Animator.StringToHash("HitReaction");
+    private static readonly int _hashHitType       = Animator.StringToHash("HitType");
+    private static readonly int _hashDeath         = Animator.StringToHash("Death");
 
     void Awake()
     {
@@ -46,11 +80,29 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (_meleeCooldownTimer > 0f)
+            _meleeCooldownTimer -= Time.deltaTime;
+
+        if (_dodgeCooldownTimer > 0f)
+            _dodgeCooldownTimer -= Time.deltaTime;
+
+        // Combo window timer — tracks time since last attack
+        if (_comboTimer > 0f)
+        {
+            _comboTimer -= Time.deltaTime;
+            if (_comboTimer <= 0f)
+            {
+                _comboIndex = 0;
+            }
+        }
+
         HandleGroundCheck();
         HandleMouseLook();
         HandleCrouch();
         HandleMovement();
         HandleJump();
+        HandleDodge();
+        HandleAttack();
         ApplyGravity();
         UpdateAnimator();
     }
@@ -72,6 +124,7 @@ public class PlayerController : MonoBehaviour
         _animator.SetFloat(_hashSpeed,       speed, 0.1f, Time.deltaTime);
         _animator.SetBool (_hashIsCrouching, _isCrouching);
         _animator.SetBool (_hashIsGrounded,  IsGrounded());
+        _animator.SetBool (_hashIsRunning,   _isSprinting);
     }
 
     bool IsGrounded()
@@ -172,6 +225,84 @@ public class PlayerController : MonoBehaviour
             _velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
             _animator?.SetTrigger(_hashJump);
         }
+    }
+
+    void HandleDodge()
+    {
+        if (_dodgeCooldownTimer > 0f) return;
+
+        var mouse = Mouse.current;
+        var kb = Keyboard.current;
+        if (mouse == null || kb == null) return;
+        if (!mouse.rightButton.wasPressedThisFrame) return;
+
+        // Determine dodge direction from WASD input
+        // 0 = forward, 1 = back, 2 = left, 3 = right
+        int dodgeDir;
+        if (kb.wKey.isPressed)
+            dodgeDir = 0; // forward
+        else if (kb.sKey.isPressed)
+            dodgeDir = 1; // back
+        else if (kb.aKey.isPressed)
+            dodgeDir = 2; // left
+        else if (kb.dKey.isPressed)
+            dodgeDir = 3; // right
+        else
+            dodgeDir = 1; // default: back dodge (no directional input)
+
+        _animator?.SetInteger(_hashDodgeDirection, dodgeDir);
+        _animator?.SetTrigger(_hashDodge);
+
+        _dodgeCooldownTimer = DodgeCooldown;
+    }
+
+    void HandleAttack()
+    {
+        if (_meleeCooldownTimer > 0f) return;
+
+        var mouse = Mouse.current;
+        if (mouse == null) return;
+        if (!mouse.leftButton.wasPressedThisFrame) return;
+
+        // Combo system — cycles 0→1→2, resets after ComboWindow of inactivity
+        _comboIndex = (_comboIndex + 1) % 3; // 0→1→2→0...
+        _comboTimer = ComboWindow;
+
+        if (_animator != null)
+        {
+            _animator.SetInteger(_hashComboIndex, _comboIndex);
+            _animator.SetInteger(_hashAttackIndex, _comboIndex);
+            _animator.SetTrigger(_hashAttack);
+        }
+
+        // Melee attack — OverlapSphereNonAlloc per ADR-0001
+        Vector3 attackOrigin = cameraHolder.position + cameraHolder.forward * 0.5f;
+        int hits = Physics.OverlapSphereNonAlloc(attackOrigin, MeleeRadius, _meleeResults, MeleeLayerMask);
+
+        Debug.Log($"[Attack] Origin={attackOrigin}, Radius={MeleeRadius}, Hits={hits}, LayerMask={MeleeLayerMask.value}");
+
+        bool hitSomething = false;
+        for (int i = 0; i < hits; i++)
+        {
+            Debug.Log($"[Attack] Hit[{i}]: {_meleeResults[i].name}, has IDamageable={_meleeResults[i].TryGetComponent<IDamageable>(out _)}");
+
+            // Skip self
+            if (_meleeResults[i].transform.IsChildOf(transform)) continue;
+
+            if (_meleeResults[i].TryGetComponent<IDamageable>(out var target))
+            {
+                var data = DamageData.Physical(MeleeDamage, gameObject);
+                data.HitPoint = _meleeResults[i].ClosestPoint(attackOrigin);
+                data.HitNormal = (attackOrigin - data.HitPoint).normalized;
+                target.ApplyDamage(data);
+                hitSomething = true;
+            }
+        }
+
+        if (hitSomething && MeleeVFX != null)
+            MeleeVFX.Play();
+
+        _meleeCooldownTimer = MeleeCooldown;
     }
 
     void ApplyGravity()
