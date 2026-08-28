@@ -111,15 +111,8 @@ public class PlayerController : MonoBehaviour
     {
         if (_animator == null) return;
 
-        float speed = 0f;
-        var kb = Keyboard.current;
-        if (kb != null)
-        {
-            bool isMoving = kb.wKey.isPressed || kb.sKey.isPressed ||
-                            kb.aKey.isPressed || kb.dKey.isPressed;
-            if (isMoving)
-                speed = _isSprinting ? 1f : 0.5f;
-        }
+        Vector3 horizontalVelocity = new Vector3(_cc.velocity.x, 0f, _cc.velocity.z);
+        float speed = Mathf.Clamp01(horizontalVelocity.magnitude / runSpeed);
 
         _animator.SetFloat(_hashSpeed,       speed, 0.1f, Time.deltaTime);
         _animator.SetBool (_hashIsCrouching, _isCrouching);
