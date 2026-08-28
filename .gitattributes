@@ -12,6 +12,9 @@
 *.unity text eol=lf
 *.prefab text eol=lf
 *.asset text eol=lf
+
+# Unity Terrain data (.asset) is binary, not YAML text — exclude from CRLF handling
+Oasis/Assets/New Terrain.asset binary
 *.meta text eol=lf
 *.controller text eol=lf
 *.anim text eol=lf
