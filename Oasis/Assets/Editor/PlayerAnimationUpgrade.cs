@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.Animations;
+using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 
 public static class PlayerAnimationUpgrade
@@ -39,9 +40,6 @@ public static class PlayerAnimationUpgrade
             {
                 clips[i].loopTime           = !isJump;
                 clips[i].loopPose           = !isJump;
-                clips[i].loopBlend          = !isJump;
-                clips[i].loopBlendOrientation = !isJump;
-                clips[i].loopBlendPositionXZ  = !isJump;
             }
             importer.clipAnimations = clips;
             importer.SaveAndReimport();
